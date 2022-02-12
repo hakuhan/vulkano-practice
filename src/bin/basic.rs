@@ -13,6 +13,11 @@ use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 // For command buffer
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage};
 
+// For image
+use vulkano::image::{ImageDimensions, StorageImage};
+use vulkano::format::{Format, ClearValue};
+use image::{ImageBuffer, Rgba};
+
 // Submit commands
 use vulkano::sync;
 use vulkano::sync::GpuFuture;
@@ -25,10 +30,11 @@ use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 
 // practice type for testing
 #[allow(dead_code)]
-enum PracticeBufferType
+enum PracticeType
 {
     Simple,
     Compute,
+    Image,
 }
 
 fn main()
@@ -54,10 +60,10 @@ fn main()
 
     let queue = queues.next().unwrap();
 
-    let buffer_type = PracticeBufferType::Compute;
+    let buffer_type = PracticeType::Image;
     match buffer_type
     {
-        PracticeBufferType::Simple => {
+        PracticeType::Simple => {
             // Simple example
             // accesable buffer for store and operate datas
             let source_content = 0..64; 
@@ -96,7 +102,7 @@ fn main()
             println! ("Simple buffer ok!")
         }
 
-        PracticeBufferType::Compute => {
+        PracticeType::Compute => {
             // Compute example
             let data_iter = 0..65535;
             let data_buffer = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false, data_iter)
@@ -176,6 +182,51 @@ fn main()
             }
             
             println!("Compute shader succeeded!");            
+        }
+
+        PracticeType::Image => {
+            let image = StorageImage::new(device.clone(), 
+                ImageDimensions::Dim2d {
+                    width: 1024,
+                    height: 1024,
+                    array_layers: 1,
+                }, 
+                Format::R8G8B8A8_UNORM,
+                Some(queue.family()),
+            ).unwrap();
+
+            // Create a buffer to store image
+            let buf  = CpuAccessibleBuffer::from_iter(device.clone(),
+                BufferUsage::all(),
+                false,
+                (0..1024 * 1024 * 4).map(|_| 0u8),
+            ).expect("failed to create buffer");
+
+            let mut builder = AutoCommandBufferBuilder::primary(
+                device.clone(),
+                queue.family(),
+                CommandBufferUsage::OneTimeSubmit,
+            ).unwrap();
+
+            builder.clear_color_image(image.clone(),
+                ClearValue::Float([0.0, 0.0, 1.0, 1.0]))
+                .unwrap()
+                .copy_image_to_buffer(image.clone(), buf.clone())
+                .unwrap();
+
+            let command_buffer = builder.build().unwrap();
+
+            let future = sync::now(device.clone())
+                .then_execute(queue.clone(), command_buffer)
+                .unwrap()
+                .then_signal_fence_and_flush()
+                .unwrap();
+
+            future.wait(None).unwrap();
+
+            let buffer_content = buf.read().unwrap();
+            let showing_image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+            showing_image.save("image.png").unwrap();
         }
     }
 
