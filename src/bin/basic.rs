@@ -23,6 +23,14 @@ use vulkano::pipeline::Pipeline;
 use vulkano::pipeline::PipelineBindPoint;
 use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 
+// practice type for testing
+#[allow(dead_code)]
+enum PracticeBufferType
+{
+    Simple,
+    Compute,
+}
+
 fn main()
 {
     // let required_extensions = vulkano_win::required_extensions();
@@ -46,13 +54,7 @@ fn main()
 
     let queue = queues.next().unwrap();
 
-    enum PracticeBufferType
-    {
-        Simple,
-        Compute,
-    }
     let buffer_type = PracticeBufferType::Compute;
-
     match buffer_type
     {
         PracticeBufferType::Simple => {
