@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 vulkano = "0.28"
+vulkano-shaders = "0.28.0"
